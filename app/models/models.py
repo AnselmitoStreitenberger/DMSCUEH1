@@ -1,34 +1,39 @@
 from app.db import db
-from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy import DateTime, Boolean, Integer, Text, Float, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy import DateTime, Boolean, Integer, Text, Float, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ENUM
 
+# ENUM para estado de pedido
 estado_enum = ENUM('para pedir', 'pedido', 'recibido', 'sin stock fabrica', name='estado', create_type=False)
-
 
 class Vehiculo(db.Model):
     __tablename__ = 'vehiculos'
     id = db.Column(Integer, primary_key=True)
     nombre = db.Column(Text)
-    ano = db.Column(DateTime)
+    ano = db.Column(Text)  # ← lo corregí a TEXT como pediste
     codigo_manual = db.Column(Text)
 
+    repuestos_asociados = relationship('RepuestoVehiculo', back_populates='vehiculo')
 
 class Repuesto(db.Model):
     __tablename__ = 'repuestos'
-    codigo_pieza = db.Column(db.Text, primary_key=True)
-    descripcion = db.Column(db.Text)
-    precio = db.Column(db.Float)
-    stock_min = db.Column(db.Integer)
-    stock_real = db.Column(db.Integer)
-    stock_disp = db.Column(db.Integer)
+    codigo_pieza = db.Column(Text, primary_key=True)
+    descripcion = db.Column(Text)
+    precio = db.Column(Float)
+    stock_min = db.Column(Integer)
+    stock_real = db.Column(Integer)
+    stock_disp = db.Column(Integer)
 
-    vehiculos = db.relationship(
-        'Vehiculo',
-        secondary='repuestosvehiculos',
-        backref='repuestos'
-    )
+    vehiculos_asociados = relationship('RepuestoVehiculo', back_populates='repuesto')
 
+
+class RepuestoVehiculo(db.Model):
+    __tablename__ = 'repuestosvehiculos'
+    codigo_pieza = db.Column(Text, ForeignKey('repuestos.codigo_pieza'), primary_key=True)
+    vehiculo_id = db.Column(Integer, ForeignKey('vehiculos.id'), primary_key=True)
+
+    repuesto = relationship('Repuesto', back_populates='vehiculos_asociados')
+    vehiculo = relationship('Vehiculo', back_populates='repuestos_asociados')
 
 
 class Pedido(db.Model):
@@ -110,15 +115,6 @@ class RepuestoPresupuesto(db.Model):
     presupuesto_id = db.Column(Integer, ForeignKey('presupuestos.id'), primary_key=True)
     cantidad = db.Column(Integer)
 
-
-class RepuestoVehiculo(db.Model):
-   
-    codigo_pieza = db.Column(db.Text, db.ForeignKey('repuestos.codigo_pieza'), primary_key=True)
-    vehiculo_id = db.Column(db.Integer, db.ForeignKey('vehiculos.id'), primary_key=True)
-
-    # Relaciones
-    repuesto = relationship('Repuesto', backref='vehiculos_asociados')
-    vehiculo = relationship('Vehiculo', backref='repuestos_asociados')
 
 class VentaRepuesto(db.Model):
     __tablename__ = 'ventasrepuestos'
