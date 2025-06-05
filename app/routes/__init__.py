@@ -13,6 +13,7 @@ from .repuestospresupuestos_routes import repuestospresupuestos_bp
 from .repuestosvehiculos_routes import repuestosvehiculos_bp
 from .ventasrepuestos_routes import ventasrepuestos_bp
 from .ventasmovimientos_routes import ventasmovimientos_bp
+from .repuestoscompatibles_routes import repuestoscompatibles_bp
 # Importar más rutas acá
 
 def register_routes(app):
@@ -30,3 +31,4 @@ def register_routes(app):
     app.register_blueprint(repuestosvehiculos_bp)
     app.register_blueprint(ventasrepuestos_bp)
     app.register_blueprint(ventasmovimientos_bp)
+    app.register_blueprint(repuestoscompatibles_bp)

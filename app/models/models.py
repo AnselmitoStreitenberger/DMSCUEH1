@@ -127,3 +127,16 @@ class VentaMovimiento(db.Model):
     __tablename__ = 'ventasmovimientos'
     venta_id = db.Column(Integer, ForeignKey('ventas.id'), primary_key=True)
     movimiento_id = db.Column(Integer, ForeignKey('movimientos.id'), primary_key=True)
+    
+class RepuestoCompatible(db.Model):
+    __tablename__ = 'repuestoscompatibles'
+
+    codigo_pieza_1 = db.Column(Text, db.ForeignKey('repuestos.codigo_pieza'), primary_key=True)
+    codigo_pieza_2 = db.Column(Text, db.ForeignKey('repuestos.codigo_pieza'), primary_key=True)
+
+    __table_args__ = (
+        db.CheckConstraint('codigo_pieza_1 < codigo_pieza_2', name='check_orden_codigo_pieza'),
+    )
+
+    repuesto_1 = relationship('Repuesto', foreign_keys=[codigo_pieza_1])
+    repuesto_2 = relationship('Repuesto', foreign_keys=[codigo_pieza_2])
