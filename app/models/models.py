@@ -1,6 +1,7 @@
 from app.db import db
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy import DateTime, Boolean, Integer, Text, Float, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy.orm import relationship
 
 estado_enum = ENUM('para pedir', 'pedido', 'recibido', 'sin stock fabrica', name='estado', create_type=False)
 
@@ -15,12 +16,19 @@ class Vehiculo(db.Model):
 
 class Repuesto(db.Model):
     __tablename__ = 'repuestos'
-    codigo_pieza = db.Column(Text, primary_key=True)
-    descripcion = db.Column(Text)
-    precio = db.Column(Float)
-    stock_min = db.Column(Integer)
-    stock_real = db.Column(Integer)
-    stock_disp = db.Column(Integer)
+    codigo_pieza = db.Column(db.Text, primary_key=True)
+    descripcion = db.Column(db.Text)
+    precio = db.Column(db.Float)
+    stock_min = db.Column(db.Integer)
+    stock_real = db.Column(db.Integer)
+    stock_disp = db.Column(db.Integer)
+
+    vehiculos = db.relationship(
+        'Vehiculo',
+        secondary='repuestosvehiculos',
+        backref='repuestos'
+    )
+
 
 
 class Pedido(db.Model):
@@ -104,10 +112,13 @@ class RepuestoPresupuesto(db.Model):
 
 
 class RepuestoVehiculo(db.Model):
-    __tablename__ = 'repuestosvehiculos'
-    codigo_pieza = db.Column(Text, ForeignKey('repuestos.codigo_pieza'), primary_key=True)
-    vehiculo_id = db.Column(Integer, ForeignKey('vehiculos.id'), primary_key=True)
+   
+    codigo_pieza = db.Column(db.Text, db.ForeignKey('repuestos.codigo_pieza'), primary_key=True)
+    vehiculo_id = db.Column(db.Integer, db.ForeignKey('vehiculos.id'), primary_key=True)
 
+    # Relaciones
+    repuesto = relationship('Repuesto', backref='vehiculos_asociados')
+    vehiculo = relationship('Vehiculo', backref='repuestos_asociados')
 
 class VentaRepuesto(db.Model):
     __tablename__ = 'ventasrepuestos'
