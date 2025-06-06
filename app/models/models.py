@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ENUM
 
 # ENUM para estado de pedido
-estado_enum = ENUM('para pedir', 'pedido', 'recibido', 'sin stock fabrica', name='estado', create_type=False)
+estado_enum = ENUM('para pedir', 'pedido', 'recibido', 'avisado', 'sin stock fabrica', name='estado', create_type=False)
 
 class Vehiculo(db.Model):
     __tablename__ = 'vehiculos'
