@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from app.models.models import Pedido, PedidoDetalle, PedidoCliente
+from app.models.models import Pedido, PedidoDetalle, PedidoCliente, Cliente
 from app.db import db
 
 pedidosarmado_bp = Blueprint('pedidosarmado', __name__, url_prefix='/api/pedidosarmado')
@@ -124,3 +124,86 @@ def pedidos_por_cliente(cliente_id):
         })
 
     return jsonify(resultado)
+@pedidosarmado_bp.route('/agrupados', methods=['GET'])
+def listar_pedidos_agrupados():
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 5))
+    estado_filtro = request.args.get('estado')  # opcional
+    con_fecha_str = request.args.get('con_fecha')  # opcional
+    cliente_filtro = request.args.get('cliente')  # opcional
+    offset = (page - 1) * limit
+
+    # Base query
+    query = Pedido.query
+
+    # Filtro por existencia de fecha_ped_fab
+    if con_fecha_str == "true":
+        query = query.filter(Pedido.fecha_ped_fab.isnot(None))
+    elif con_fecha_str == "false":
+        query = query.filter(Pedido.fecha_ped_fab.is_(None))
+
+    pedidos = query.order_by(Pedido.id.desc()).offset(offset).limit(limit).all()
+    resultado = []
+
+    for pedido in pedidos:
+        detalles = PedidoDetalle.query.filter_by(pedido_id=pedido.id).all()
+
+        if estado_filtro:
+            detalles = [d for d in detalles if d.estado == estado_filtro]
+
+        if not detalles:
+            continue  # salteamos pedidos sin detalles válidos
+
+        detalle_info = []
+
+        for detalle in detalles:
+            relaciones = PedidoCliente.query.filter_by(pedido_detalle_id=detalle.id).all()
+            clientes_info = []
+
+            for r in relaciones:
+                cliente = Cliente.query.get(r.cliente_id)
+                if cliente:
+                    # Aplicar filtro de nombre de cliente (case-insensitive)
+                    if cliente_filtro and cliente_filtro.lower() not in cliente.nombre.lower():
+                        continue
+
+                    clientes_info.append({
+                        'id': cliente.id,
+                        'nombre': cliente.nombre,
+                        'telefono': cliente.telefono,
+                        'cantidad': r.cantidad,
+                        'senia': r.senia,
+                        'entregado': r.entregado
+                    })
+
+            # Si se aplicó filtro por cliente y no hay coincidencias, saltear este detalle
+            if cliente_filtro and not clientes_info:
+                continue
+
+            detalle_info.append({
+                'detalle_id': detalle.id,
+                'codigo_pieza': detalle.codigo_pieza,
+                'cantidad_total': detalle.cantidad,
+                'estado': detalle.estado,
+                'clientes': clientes_info
+            })
+
+        if not detalle_info:
+            continue  # saltear pedido si no hay detalles que cumplan el filtro
+
+        resultado.append({
+            'pedido_id': pedido.id,
+            'codigo_pedido': pedido.codigo_pedido,
+            'fecha_creacion': pedido.fecha_creacion,
+            'fecha_ped_fab': pedido.fecha_ped_fab,
+            'detalles': detalle_info
+        })
+
+    return jsonify({
+        'pagina': page,
+        'limite': limit,
+        'estado': estado_filtro,
+        'con_fecha': con_fecha_str,
+        'cliente': cliente_filtro,
+        'resultados': resultado
+    })
