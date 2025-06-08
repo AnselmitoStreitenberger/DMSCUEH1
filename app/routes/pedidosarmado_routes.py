@@ -54,35 +54,6 @@ def agregar_a_pedido_actual():
     db.session.commit()
     return jsonify({'message': 'Pedido actualizado', 'pedido_id': pedido.id, 'detalle_id': detalle.id})
 
-@pedidosarmado_bp.route('/finalizar', methods=['POST'])
-def finalizar_pedido_actual():
-    pedido = Pedido.query.filter_by(fecha_ped_fab=None).first()
-    if not pedido:
-        return jsonify({'error': 'No hay pedido abierto para pedir a fábrica'}), 404
-
-    # Marcar como pedido a fábrica
-    pedido.fecha_ped_fab = datetime.now()
-
-    # Buscar y actualizar los detalles
-    detalles = PedidoDetalle.query.filter_by(pedido_id=pedido.id).all()
-    piezas_actualizadas = []
-
-    for d in detalles:
-        d.estado = 'pedido'
-        piezas_actualizadas.append({
-            'detalle_id': d.id,
-            'codigo_pieza': d.codigo_pieza,
-            'cantidad': d.cantidad
-        })
-
-    db.session.commit()
-
-    return jsonify({
-        'message': 'Pedido a fábrica finalizado',
-        'pedido_id': pedido.id,
-        'piezas_actualizadas': piezas_actualizadas
-    })
-
 @pedidosarmado_bp.route('/estado/<int:detalle_id>', methods=['PATCH'])
 def actualizar_estado(detalle_id):
     data = request.get_json()
@@ -184,8 +155,10 @@ def listar_pedidos_agrupados():
                 'detalle_id': detalle.id,
                 'codigo_pieza': detalle.codigo_pieza,
                 'cantidad_total': detalle.cantidad,
+                'cantidad_recibida': detalle.cantidad_recibida,
                 'estado': detalle.estado,
                 'clientes': clientes_info
+                
             })
 
         if not detalle_info:

@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
-from app.models.models import Pedido
+from app.models.models import Pedido , PedidoDetalle
 from app.db import db
+from datetime import datetime
+
 
 pedidos_bp = Blueprint('pedidos', __name__, url_prefix='/api/pedidos')
 
@@ -34,3 +36,27 @@ def delete(id):
     db.session.delete(i)
     db.session.commit()
     return jsonify({'message': 'Pedido eliminado'})
+
+@pedidos_bp.route('/<int:id>/marcar_enviado', methods=['PATCH'])
+def marcar_pedido_como_enviado(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if pedido.fecha_ped_fab:
+        return jsonify({'error': 'El pedido ya fue marcado como enviado'}), 400
+
+    # 1. Marcar la fecha de envío
+    pedido.fecha_ped_fab = datetime.now()
+
+    # 2. Actualizar estado de los detalles a "pedido"
+    detalles = PedidoDetalle.query.filter_by(pedido_id=pedido.id).all()
+    for d in detalles:
+        d.estado = 'pedido'
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Pedido marcado como enviado y detalles actualizados',
+        'pedido_id': pedido.id,
+        'fecha_ped_fab': pedido.fecha_ped_fab.isoformat(),
+        'detalles_actualizados': [d.id for d in detalles]
+    })

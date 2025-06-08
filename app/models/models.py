@@ -99,6 +99,7 @@ class PedidoDetalle(db.Model):
     cantidad = db.Column(Integer)
     estado = db.Column(estado_enum, nullable=False)
     fecha_recibido = db.Column(DateTime)
+    cantidad_recibida = db.Column(Integer)
 
 
 class PedidoCliente(db.Model):
