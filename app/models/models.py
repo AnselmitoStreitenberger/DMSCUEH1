@@ -51,6 +51,8 @@ class Cliente(db.Model):
     id = db.Column(Integer, primary_key=True)
     telefono = db.Column(Text)
     nombre = db.Column(Text)
+    direccion = db.Column(Text)
+    correo_electronico = db.Column(Text)
 
 
 class Presupuesto(db.Model):
