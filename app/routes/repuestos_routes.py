@@ -1,7 +1,12 @@
+"""Rutas para la gestión de repuestos."""
+
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
+from sqlalchemy import desc
+
 from app.models.models import Repuesto
 from app.db import db
-from sqlalchemy import desc
+from app.schemas import RepuestoSchema
 
 repuestos_bp = Blueprint('repuestos', __name__, url_prefix='/api/repuestos')
 
@@ -9,6 +14,7 @@ repuestos_bp = Blueprint('repuestos', __name__, url_prefix='/api/repuestos')
 # GET con filtros, orden y paginación
 @repuestos_bp.route('/', methods=['GET'])
 def get_filtered():
+    """Obtener repuestos con filtros y paginación."""
     query = Repuesto.query
 
     # Filtro parcial por código
@@ -58,6 +64,7 @@ def get_filtered():
 # GET por ID exacto (solo si usás ID entero, en este caso código es la PK)
 @repuestos_bp.route('/codigo/<string:codigo>', methods=['GET'])
 def get_by_codigo_pieza(codigo):
+    """Obtener un repuesto por su código."""
     r = Repuesto.query.get_or_404(codigo)
     return jsonify({
         'codigo_pieza': r.codigo_pieza,
@@ -72,31 +79,32 @@ def get_by_codigo_pieza(codigo):
 # POST - Crear nuevo repuesto
 @repuestos_bp.route('/', methods=['POST'])
 def create():
-    data = request.get_json()
-    r = Repuesto(
-        codigo_pieza=data.get('codigo_pieza'),
-        descripcion=data.get('descripcion'),
-        precio=data.get('precio'),
-        stock_min=data.get('stock_min'),
-        stock_real=data.get('stock_real'),
-        stock_disp=data.get('stock_disp')
-    )
+    """Crear un repuesto validando la entrada."""
+    schema = RepuestoSchema()
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+
+    r = Repuesto(**data)
     db.session.add(r)
     db.session.commit()
-    return jsonify({'message': 'Repuesto creado'}), 201
+    return jsonify({'message': 'Repuesto creado', 'codigo_pieza': r.codigo_pieza}), 201
 
 
 # PUT - Editar repuesto existente
 @repuestos_bp.route('/<string:codigo>', methods=['PUT'])
 def update(codigo):
+    """Actualizar un repuesto existente."""
     r = Repuesto.query.get_or_404(codigo)
-    data = request.get_json()
+    schema = RepuestoSchema(partial=True)
+    try:
+        data = schema.load(request.get_json() or {}, partial=True)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
 
-    r.descripcion = data.get('descripcion', r.descripcion)
-    r.precio = data.get('precio', r.precio)
-    r.stock_min = data.get('stock_min', r.stock_min)
-    r.stock_real = data.get('stock_real', r.stock_real)
-    r.stock_disp = data.get('stock_disp', r.stock_disp)
+    for field, value in data.items():
+        setattr(r, field, value)
 
     db.session.commit()
     return jsonify({'message': 'Repuesto actualizado'})
@@ -105,6 +113,7 @@ def update(codigo):
 # DELETE - Eliminar repuesto
 @repuestos_bp.route('/<string:codigo>', methods=['DELETE'])
 def delete(codigo):
+    """Eliminar un repuesto."""
     r = Repuesto.query.get_or_404(codigo)
     db.session.delete(r)
     db.session.commit()

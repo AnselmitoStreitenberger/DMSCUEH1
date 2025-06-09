@@ -3,3 +3,5 @@ flask_sqlalchemy
 flask_migrate
 psycopg2-binary
 flask-cors
+marshmallow
+pytest
