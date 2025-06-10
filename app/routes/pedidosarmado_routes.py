@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from app.models.models import Pedido, PedidoDetalle, PedidoCliente, Cliente
+from app.models.models import Pedido, PedidoDetalle, PedidoCliente, Cliente, Repuesto
 from app.db import db
 
 pedidosarmado_bp = Blueprint('pedidosarmado', __name__, url_prefix='/api/pedidosarmado')
@@ -12,6 +12,8 @@ def agregar_a_pedido_actual():
     cantidad = data.get('cantidad', 1)
     cliente_id = data.get('cliente_id')  # puede ser None
     senia = data.get('senia', 0.0)
+    fecha_creacion = data.get('fecha_creacion', datetime.now().isoformat())
+
 
     if not codigo_pieza or cantidad <= 0:
         return jsonify({'error': 'Código de pieza y cantidad válida son obligatorios'}), 400
@@ -45,7 +47,8 @@ def agregar_a_pedido_actual():
             pedido_detalle_id=detalle.id,
             senia=senia,
             entregado=False,
-            cantidad=cantidad
+            cantidad=cantidad,
+            fecha_creacion=datetime.fromisoformat(fecha_creacion) if fecha_creacion else datetime.now()
         )
         db.session.add(pedido_cliente)
 
@@ -179,4 +182,73 @@ def listar_pedidos_agrupados():
         'con_fecha': con_fecha_str,
         'cliente': cliente_filtro,
         'resultados': resultado
+    })
+
+@pedidosarmado_bp.route('/marcar_recibido', methods=['PATCH'])
+def marcar_pedido_como_recibido():
+    data = request.get_json()
+    cliente_id = data.get('cliente_id')
+    codigo_pieza = data.get('codigo_pieza')
+    codigo_pedido = data.get('codigo_pedido')
+    cantidad_recibida = data.get('cantidad_recibida')
+
+    if not all([cliente_id, codigo_pieza, codigo_pedido, cantidad_recibida]):
+        return jsonify({'error': 'Faltan datos obligatorios'}), 400
+
+    # Buscar pedido
+    pedido = Pedido.query.filter_by(codigo_pedido=codigo_pedido).first()
+    if not pedido:
+        return jsonify({'error': 'Pedido no encontrado'}), 404
+
+    # Buscar detalle del pedido
+    detalle = PedidoDetalle.query.filter_by(pedido_id=pedido.id, codigo_pieza=codigo_pieza).first()
+    if not detalle:
+        return jsonify({'error': 'Detalle del pedido no encontrado'}), 404
+
+    # Buscar relación con cliente
+    relacion = PedidoCliente.query.filter_by(cliente_id=cliente_id, pedido_detalle_id=detalle.id).first()
+    if not relacion:
+        return jsonify({'error': 'Relación cliente-detalle no encontrada'}), 404
+
+    # Validar que no supere lo que el cliente pidió
+    recibido_actual = relacion.cantidad_recibida or 0
+    if recibido_actual + cantidad_recibida > relacion.cantidad:
+        return jsonify({
+            'error': 'La cantidad recibida excede la cantidad solicitada por el cliente',
+            'cantidad_pedida': relacion.cantidad,
+            'cantidad_ya_recibida': recibido_actual,
+            'cantidad_a_recibir': cantidad_recibida
+        }), 400
+
+    # Actualizar cantidad recibida en PedidoCliente
+    relacion.cantidad_recibida = recibido_actual + cantidad_recibida
+
+    # Actualizar cantidad recibida en PedidoDetalle
+    detalle.cantidad_recibida = (detalle.cantidad_recibida or 0) + cantidad_recibida
+
+    # Actualizar estado
+    if detalle.cantidad_recibida >= detalle.cantidad:
+        detalle.estado = 'recibido'
+    else:
+        detalle.estado = 'incompleto'
+
+    # Registrar fecha
+    from datetime import datetime
+    detalle.fecha_recibido = datetime.now()
+
+    # Actualizar stock real
+    repuesto = Repuesto.query.get(codigo_pieza)
+    if repuesto:
+        repuesto.stock_real = (repuesto.stock_real or 0) + cantidad_recibida
+    else:
+        return jsonify({'error': 'Repuesto no encontrado'}), 404
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Cantidad recibida registrada',
+        'detalle_id': detalle.id,
+        'estado': detalle.estado,
+        'cantidad_recibida_total': detalle.cantidad_recibida,
+        'cantidad_recibida_cliente': relacion.cantidad_recibida
     })

@@ -71,16 +71,20 @@ def get_filtrados():
     resultados = []
     for pc, cl, pd, p in paginated:
         resultados.append({
+            'cliente_id': pc.cliente_id,
+            'detalle_id': pc.pedido_detalle_id,
             'nombre': cl.nombre,
             'telefono': cl.telefono,
             'codigo_pieza': pd.codigo_pieza,
             'cantidad': pc.cantidad,
             'senia': pc.senia,
-            'cantidad_recibida': pd.cantidad_recibida,
+            'cantidad_recibida': pc.cantidad_recibida,
             'fecha_recibido': pd.fecha_recibido.isoformat() if pd.fecha_recibido else None,
             'codigo_pedido': p.codigo_pedido,
             'estado': pd.estado,
+            'fecha_creacion': pc.fecha_creacion.isoformat() if pc.fecha_creacion else None,
         })
 
     return jsonify(resultados)
+
 

@@ -34,3 +34,24 @@ def delete(id):
     db.session.delete(i)
     db.session.commit()
     return jsonify({'message': 'PedidoDetalle eliminado'})
+
+@pedidosdetalle_bp.route('/marcar_recibidos', methods=['PATCH'])
+def marcar_detalles_recibidos():
+    data = request.get_json()
+    ids = data.get('ids', [])
+
+    if not ids:
+        return jsonify({'error': 'No se enviaron IDs'}), 400
+
+    detalles = PedidoDetalle.query.filter(PedidoDetalle.id.in_(ids)).all()
+
+    for d in detalles:
+        d.estado = 'recibido'
+        d.fecha_recibido = datetime.now()
+
+    db.session.commit()
+
+    return jsonify({
+        'message': f'{len(detalles)} detalle(s) marcados como recibidos',
+        'ids': [d.id for d in detalles]
+    })

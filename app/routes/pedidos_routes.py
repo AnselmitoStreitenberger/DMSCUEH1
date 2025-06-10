@@ -60,3 +60,21 @@ def marcar_pedido_como_enviado(id):
         'fecha_ped_fab': pedido.fecha_ped_fab.isoformat(),
         'detalles_actualizados': [d.id for d in detalles]
     })
+@pedidos_bp.route('/<int:id>/codigo', methods=['PATCH'])
+def actualizar_codigo_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    data = request.get_json()
+
+    nuevo_codigo = data.get('codigo_pedido')
+    if not nuevo_codigo:
+        return jsonify({'error': 'Falta el campo codigo_pedido'}), 400
+
+    pedido.codigo_pedido = nuevo_codigo
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Código de pedido actualizado',
+        'pedido_id': pedido.id,
+        'codigo_pedido': pedido.codigo_pedido
+    })
+
